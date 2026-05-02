@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SysMon Pro — System Monitor & Security Scanner</title>
+  <meta name="description" content="Real-time system monitoring with CPU, RAM, disk charts, Windows security scanning, and PDF/CSV report generation." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #05091a;
+      --bg1:        #0d1225;
+      --bg2:        #111829;
+      --card:       rgba(13, 18, 37, 0.92);
+      --border:     rgba(99, 179, 237, 0.12);
+      --border-h:   rgba(99, 179, 237, 0.3);
+      --teal:       #2dd4bf;
+      --purple:     #a78bfa;
+      --blue:       #60a5fa;
+      --pink:       #f472b6;
+      --amber:      #fbbf24;
+      --green:      #34d399;
+      --red:        #f87171;
+      --indigo:     #818cf8;
+      --text:       #e2e8f0;
+      --text2:      #94a3b8;
+      --text3:      #475569;
+      --radius:     14px;
+      --radius-sm:  8px;
+      --shadow:     0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Mesh gradient BG */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; pointer-events: none; z-index: 0;
+      background:
+        radial-gradient(ellipse 100% 80% at 5% 0%, rgba(45,212,191,0.055) 0%, transparent 55%),
+        radial-gradient(ellipse 80% 80% at 95% 95%, rgba(167,139,250,0.06) 0%, transparent 55%),
+        radial-gradient(ellipse 70% 60% at 50% 40%, rgba(96,165,250,0.04) 0%, transparent 55%);
+    }
+
+    /* ── LOADING ── */
+    #loading-screen {
+      position: fixed; inset: 0; background: var(--bg); z-index: 9999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    }
+    .loading-logo { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; }
+    .loading-logo .hi { color: var(--teal); }
+    .loading-sub { color: var(--text3); font-size: 0.85rem; letter-spacing: 0.15em; text-transform: uppercase; }
+    .loading-bar { width: 220px; height: 3px; background: rgba(255,255,255,0.07); border-radius: 2px; overflow: hidden; }
+    .loading-bar-fill { height: 100%; width: 0; background: linear-gradient(90deg, var(--teal), var(--purple)); animation: lbar 1.6s ease forwards; }
+    @keyframes lbar { to { width: 100%; } }
+    .loading-err { color: var(--red); font-size: 0.85rem; padding: 12px 20px; border-radius: var(--radius-sm); background: rgba(248,113,113,0.1); border: 1px solid rgba(248,113,113,0.25); }
+    .loading-code { background: rgba(255,255,255,0.05); border-radius: 6px; padding: 8px 16px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--teal); margin: 4px 0; }
+
+    /* ── HEADER ── */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(5,9,26,0.88); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 32px;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--teal), var(--purple));
+      display: grid; place-items: center; font-size: 16px;
+      box-shadow: 0 0 16px rgba(45,212,191,0.3);
+    }
+    .brand-name { font-size: 1.1rem; font-weight: 800; letter-spacing: -0.02em; }
+    .brand-name span { color: var(--teal); }
+
+    .header-r { display: flex; align-items: center; gap: 14px; }
+    .live-pill {
+      display: flex; align-items: center; gap: 7px;
+      background: rgba(52,211,153,0.1); border: 1px solid rgba(52,211,153,0.25);
+      border-radius: 20px; padding: 5px 14px; font-size: 0.72rem; font-weight: 700;
+      color: var(--green); letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+      box-shadow: 0 0 8px var(--green); animation: blink 2s infinite; }
+    @keyframes blink { 50% { opacity: 0.5; box-shadow: none; } }
+    .time-badge { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--text3); }
+
+    /* ── TABS ── */
+    nav.tabs { display: flex; gap: 3px; padding: 14px 32px 0; }
+    .tab {
+      display: flex; align-items: center; gap: 7px;
+      padding: 9px 20px; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      border: 1px solid transparent; border-bottom: none;
+      background: transparent; color: var(--text2);
+      font-family: inherit; font-size: 0.84rem; font-weight: 500;
+      cursor: pointer; transition: all 0.18s;
+    }
+    .tab:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+    .tab.active { color: var(--teal); background: rgba(45,212,191,0.07); border-color: var(--border); }
+    .tab svg { width: 15px; height: 15px; }
+
+    /* ── PANELS ── */
+    section.panel { display: none; padding: 24px 32px; position: relative; z-index: 1; }
+    section.panel.active { display: block; }
+
+    /* ── STAT GRID ── */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-bottom: 20px; }
+
+    .stat-card {
+      position: relative; overflow: hidden;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 18px 20px;
+      backdrop-filter: blur(12px);
+      transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
+    }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: var(--c, var(--teal)); border-radius: 2px 2px 0 0;
+    }
+    .stat-card:hover { transform: translateY(-2px); border-color: var(--border-h); box-shadow: var(--shadow); }
+
+    .sc-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .sc-icon { width: 34px; height: 34px; border-radius: 9px; background: rgba(255,255,255,0.05); display: grid; place-items: center; font-size: 16px; }
+    .sc-tag { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 3px 9px; border-radius: 20px; background: rgba(255,255,255,0.06); color: var(--text2); }
+    .sc-val { font-size: 2rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--c, var(--teal)); line-height: 1; margin-bottom: 4px; }
+    .sc-lbl { font-size: 0.77rem; color: var(--text2); margin-bottom: 10px; }
+    .sc-bar { height: 4px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+    .sc-fill { height: 100%; border-radius: 2px; background: var(--c, var(--teal)); transition: width 0.7s ease; box-shadow: 0 0 8px var(--c, var(--teal)); }
+
+    /* ── CHARTS ── */
+    .charts-row { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; backdrop-filter: blur(12px); transition: border-color 0.2s; }
+    .card:hover { border-color: var(--border-h); }
+    .card-hd { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); margin-bottom: 14px; }
+    .chart-wrap { position: relative; height: 220px; }
+
+    /* ── CORES GRID ── */
+    .cores-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; }
+    .core-tile { background: rgba(255,255,255,0.025); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px; }
+    .core-lbl { font-size: 0.68rem; color: var(--text3); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.07em; }
+    .core-val { font-size: 1rem; font-weight: 600; font-family: 'JetBrains Mono', monospace; margin-bottom: 6px; }
+    .core-bar { height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; overflow: hidden; }
+    .core-fill { height: 100%; border-radius: 2px; transition: width 0.5s; }
+
+    /* ── DISK ── */
+    .disk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+    .disk-card { background: rgba(255,255,255,0.025); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; }
+    .disk-h { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .disk-icon { font-size: 20px; }
+    .disk-name { font-weight: 600; font-size: 0.88rem; }
+    .disk-path { font-size: 0.68rem; color: var(--text3); font-family: 'JetBrains Mono', monospace; }
+    .disk-pct-bar { height: 7px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; margin-bottom: 7px; }
+    .disk-pct-fill { height: 100%; border-radius: 4px; transition: width 0.6s; }
+    .disk-stats { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text2); }
+
+    /* ── INFO TABLE ── */
+    .info-table { width: 100%; }
+    .info-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.83rem; }
+    .info-row:last-child { border-bottom: none; }
+    .ik { color: var(--text2); }
+    .iv { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; font-weight: 500; }
+
+    /* ── BOTTOM ROW ── */
+    .bottom-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+
+    /* ── SECURITY ── */
+    .scan-hero { text-align: center; padding: 40px 16px; }
+    .scan-hero h2 { font-size: 1.4rem; font-weight: 700; margin-bottom: 8px; }
+    .scan-hero p { color: var(--text2); font-size: 0.88rem; max-width: 480px; margin: 0 auto 28px; line-height: 1.6; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 9px;
+      padding: 11px 26px; border-radius: 50px; border: none;
+      font-family: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: linear-gradient(135deg, var(--teal), var(--purple)); color: white; box-shadow: 0 0 24px rgba(45,212,191,0.25); }
+    .btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 0 40px rgba(45,212,191,0.4); }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    .score-ring-wrap { display: flex; justify-content: center; margin-bottom: 20px; }
+    .score-ring { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+    .score-ring svg { transform: rotate(-90deg); }
+    .ring-bg { fill: none; stroke: rgba(255,255,255,0.07); }
+    .ring-fg { fill: none; stroke-linecap: round; transition: stroke-dashoffset 1.2s ease; }
+    .score-inner { position: absolute; text-align: center; }
+    .score-num { font-size: 2.4rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .score-sub { font-size: 0.68rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.12em; margin-top: 2px; }
+    .score-status { font-size: 0.88rem; font-weight: 600; margin-top: 6px; }
+
+    .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 22px; }
+    .chip { padding: 5px 16px; border-radius: 50px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.05em; }
+    .chip-pass { background: rgba(52,211,153,0.12); color: var(--green); border: 1px solid rgba(52,211,153,0.25); }
+    .chip-warn { background: rgba(251,191,36,0.12); color: var(--amber); border: 1px solid rgba(251,191,36,0.25); }
+    .chip-fail { background: rgba(248,113,113,0.12); color: var(--red); border: 1px solid rgba(248,113,113,0.25); }
+    .chip-info { background: rgba(129,140,248,0.12); color: var(--indigo); border: 1px solid rgba(129,140,248,0.25); }
+
+    .findings { display: flex; flex-direction: column; gap: 8px; max-width: 820px; margin: 0 auto; }
+    .finding {
+      display: grid; grid-template-columns: 40px 1fr auto;
+      gap: 14px; align-items: start;
+      background: rgba(255,255,255,0.025); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 12px 16px;
+      border-left: 3px solid transparent;
+      transition: border-color 0.2s;
+    }
+    .finding:hover { border-color: var(--border-h); }
+    .f-icon { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; font-size: 17px; }
+    .f-cat { font-size: 0.66rem; color: var(--text3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 1px; }
+    .f-name { font-size: 0.88rem; font-weight: 600; margin-bottom: 3px; }
+    .f-detail { font-size: 0.77rem; color: var(--text2); font-family: 'JetBrains Mono', monospace; word-break: break-all; }
+    .f-rec { font-size: 0.76rem; color: var(--amber); display: flex; align-items: center; gap: 5px; margin-top: 4px; }
+    .f-badge { padding: 3px 11px; border-radius: 50px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; white-space: nowrap; }
+
+    /* ── REPORTS ── */
+    .reports-wrap { max-width: 680px; margin: 0 auto; }
+    .reports-hero { text-align: center; padding: 36px 16px 28px; }
+    .reports-hero h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; }
+    .reports-hero p { color: var(--text2); font-size: 0.87rem; max-width: 440px; margin: 0 auto; line-height: 1.6; }
+    .report-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .report-card {
+      border: 1px solid var(--border); border-radius: var(--radius); padding: 26px 22px;
+      text-align: center; transition: all 0.22s; cursor: pointer; backdrop-filter: blur(12px);
+    }
+    .report-card.pdf { background: rgba(248,113,113,0.05); }
+    .report-card.pdf:hover { border-color: rgba(248,113,113,0.45); box-shadow: 0 12px 40px rgba(248,113,113,0.15); transform: translateY(-3px); }
+    .report-card.csv { background: rgba(52,211,153,0.05); }
+    .report-card.csv:hover { border-color: rgba(52,211,153,0.45); box-shadow: 0 12px 40px rgba(52,211,153,0.15); transform: translateY(-3px); }
+    .r-emoji { font-size: 48px; margin-bottom: 12px; }
+    .r-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 5px; }
+    .r-desc { font-size: 0.8rem; color: var(--text2); line-height: 1.5; margin-bottom: 18px; }
+    .btn-dl {
+      width: 100%; justify-content: center; background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1); color: var(--text); border-radius: 50px;
+      font-family: inherit; font-size: 0.83rem; font-weight: 600; cursor: pointer;
+      padding: 9px 20px; display: flex; align-items: center; gap: 8px; transition: all 0.18s;
+    }
+    .report-card.pdf .btn-dl { color: var(--red); border-color: rgba(248,113,113,0.3); }
+    .report-card.csv .btn-dl { color: var(--green); border-color: rgba(52,211,153,0.3); }
+    .btn-dl:hover { background: rgba(255,255,255,0.09); }
+    .r-features { text-align: left; margin-top: 14px; }
+    .r-feat-item { font-size: 0.75rem; color: var(--text2); padding: 3px 0; display: flex; align-items: center; gap: 6px; }
+
+    /* ── SPINNER ── */
+    .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── TOAST ── */
+    #toast {
+      position: fixed; bottom: 20px; right: 20px; z-index: 500;
+      background: rgba(13,18,37,0.95); border: 1px solid var(--border-h);
+      border-radius: var(--radius-sm); padding: 12px 20px; font-size: 0.84rem;
+      backdrop-filter: blur(16px); transform: translateY(80px); opacity: 0;
+      transition: all 0.3s; pointer-events: none;
+    }
+    #toast.show { transform: none; opacity: 1; }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .charts-row { grid-template-columns: 1fr; }
+      header, nav.tabs, .panel { padding-left: 16px; padding-right: 16px; }
+      .report-cards { grid-template-columns: 1fr; }
+    }
+
+    /* Scan results fade-in */
+    .fade-in { animation: fadeUp 0.45s ease; }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body>
+
+<!-- Loading screen -->
+<div id="loading-screen">
+  <div class="loading-logo">Sys<span class="hi">Mon</span> Pro</div>
+  <div class="loading-sub">System Monitoring Suite</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+    <div id="loading-status" style="font-size:0.8rem;color:#475569;">Connecting to backend service…</div>
+
+  <header>
+    <div class="brand">
+      <div class="brand-mark">🖥️</div>
+      <div class="brand-name">Sys<span>Mon</span> Pro</div>
+    </div>
+    <div class="header-r">
+      <div class="live-pill"><div class="live-dot"></div>Live</div>
+      <div class="time-badge" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <nav class="tabs">
+    <button class="tab active" onclick="switchTab('dashboard',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zm10 0a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/></svg>
+      Dashboard
+    </button>
+    <button class="tab" onclick="switchTab('security',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+      Security Scan
+    </button>
+    <button class="tab" onclick="switchTab('reports',this)">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      Reports
+    </button>
+    <button class="tab" onclick="switchTab('history',this); loadHistory()">
+      <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      History
+    </button>
+  </nav>
+
+  <!-- ═══ DASHBOARD ═══ -->
+  <section class="panel active" id="panel-dashboard">
+    <!-- Stat cards -->
+    <div class="stat-grid">
+      <div class="stat-card" style="--c:var(--teal)">
+        <div class="sc-top"><div class="sc-icon">🧠</div><div class="sc-tag">CPU</div></div>
+        <div class="sc-val" id="s-cpu">—</div>
+        <div class="sc-lbl" id="s-cpu-lbl">Usage</div>
+        <div class="sc-bar"><div class="sc-fill" id="b-cpu" style="width:0%"></div></div>
+      </div>
+      <div class="stat-card" style="--c:var(--purple)">
+        <div class="sc-top"><div class="sc-icon">💾</div><div class="sc-tag">RAM</div></div>
+        <div class="sc-val" id="s-ram">—</div>
+        <div class="sc-lbl" id="s-ram-lbl">Memory Usage</div>
+        <div class="sc-bar"><div class="sc-fill" id="b-ram" style="width:0%"></div></div>
+      </div>
+      <div class="stat-card" style="--c:var(--blue)">
+        <div class="sc-top"><div class="sc-icon">📶</div><div class="sc-tag">Network</div></div>
+        <div class="sc-val" id="s-net">—</div>
+        <div class="sc-lbl">MB Received total</div>
+        <div class="sc-bar"><div class="sc-fill" style="width:100%;background:var(--blue)"></div></div>
+      </div>
+      <div class="stat-card" style="--c:var(--pink)">
+        <div class="sc-top"><div class="sc-icon">⚙️</div><div class="sc-tag">Processes</div></div>
+        <div class="sc-val" id="s-proc">—</div>
+        <div class="sc-lbl">Running processes</div>
+        <div class="sc-bar"><div class="sc-fill" style="width:100%;background:var(--pink)"></div></div>
+      </div>
+    </div>
+
+    <!-- charts row -->
+    <div class="charts-row">
+      <div class="card">
+        <div class="card-hd">CPU & RAM — 60 Second History</div>
+        <div class="chart-wrap"><canvas id="chart-main"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-hd">System Info</div>
+        <div id="sysinfo-table"></div>
+      </div>
+    </div>
+
+    <!-- Per-core -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-hd">Per-Core CPU Usage</div>
+      <div class="cores-grid" id="cores-grid"></div>
+    </div>
+
+    <!-- Disks -->
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-hd">Disk Storage</div>
+      <div class="disk-grid" id="disk-grid"></div>
+    </div>
+
+    <!-- Network + Battery -->
+    <div class="bottom-row">
+      <div class="card">
+        <div class="card-hd">Network I/O</div>
+        <div id="net-table"></div>
+      </div>
+      <div class="card">
+        <div class="card-hd">Battery / Power</div>
+        <div id="bat-info"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ SECURITY ═══ -->
+  <section class="panel" id="panel-security">
+    <div class="scan-hero">
+      <h2>🔒 Security Scanner</h2>
+      <p>Performs a real-time audit of your Windows system — Firewall, Defender, UAC, open ports, pending updates, startup programs, password policy, and more.</p>
+      <button class="btn btn-primary" id="scan-btn" onclick="runScan()">
+        <span>🛡️</span> Run Security Scan
+      </button>
+    </div>
+    <div id="scan-out"></div>
+  </section>
+
+  <!-- ═══ REPORTS ═══ -->
+  <section class="panel" id="panel-reports">
+    <div class="reports-wrap">
+      <div class="reports-hero">
+        <h2>📊 Export Reports</h2>
+        <p>Download a comprehensive snapshot of your system metrics and security scan findings in your preferred format.</p>
+      </div>
+      <div class="report-cards">
+        <div class="report-card pdf" onclick="download('pdf')">
+          <div class="r-emoji">📄</div>
+          <div class="r-title">PDF Report</div>
+          <div class="r-desc">Professionally formatted multi-page report with visual progress bars, tables, and colour-coded security results.</div>
+          <div class="r-features">
+            <div class="r-feat-item">✅ System Info & Specs</div>
+            <div class="r-feat-item">✅ CPU, RAM, Disk tables with bars</div>
+            <div class="r-feat-item">✅ Full security audit findings</div>
+            <div class="r-feat-item">✅ Executive summary section</div>
+          </div>
+          <br/>
+          <button class="btn-dl">⬇ Download PDF</button>
+        </div>
+        <div class="report-card csv" onclick="download('csv')">
+          <div class="r-emoji">📊</div>
+          <div class="r-title">CSV Spreadsheet</div>
+          <div class="r-desc">Complete machine-readable data file — perfect for Excel, Google Sheets, or further analysis and archiving.</div>
+          <div class="r-features">
+            <div class="r-feat-item">✅ All system metrics</div>
+            <div class="r-feat-item">✅ Per-core CPU data</div>
+            <div class="r-feat-item">✅ All disk volumes</div>
+            <div class="r-feat-item">✅ Full security findings table</div>
+          </div>
+          <br/>
+          <button class="btn-dl">⬇ Download CSV</button>
+        </div>
+      </div>
+      <p style="text-align:center;color:var(--text3);font-size:0.76rem;margin-top:20px">Reports capture a real-time snapshot at the moment of generation.</p>
+    </div>
+  </section>
+
+  <!-- ═══ HISTORY ═══ -->
+  <section class="panel" id="panel-history">
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-hd" style="display:flex; justify-content:space-between; align-items:center;">
+        <span>Historical System Metrics</span>
+        <div style="display:flex; gap: 10px; align-items:center;">
+          <select id="hist-range" onchange="loadHistory()" style="background:rgba(255,255,255,0.05); color:var(--text); border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 10px; font-size:0.8rem; font-family:inherit; outline:none; cursor:pointer;">
+            <option value="60">Last 1 Hour</option>
+            <option value="30">Last 30 Min</option>
+            <option value="15">Last 15 Min</option>
+            <option value="5">Last 5 Min</option>
+          </select>
+          <button class="btn btn-primary" onclick="loadHistory()" style="padding: 6px 14px; font-size: 0.75rem;">
+            <svg style="width:14px;height:14px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Refresh Data
+          </button>
+        </div>
+      </div>
+      
+      <div id="hist-loading" style="text-align:center; padding: 40px; color:var(--text2);">
+        <div class="spinner" style="margin: 0 auto 10px; border-top-color: var(--teal);"></div>
+        Loading history...
+      </div>
+
+      <div id="hist-content" style="display:none;">
+        <div class="chart-wrap" style="height: 280px; margin-bottom: 24px;">
+          <canvas id="chart-history-cpu-ram"></canvas>
+        </div>
+        <div class="card-hd">Network I/O History</div>
+        <div class="chart-wrap" style="height: 220px; margin-bottom: 24px;">
+          <canvas id="chart-history-net"></canvas>
+        </div>
+        
+        <div class="card-hd" style="margin-top:24px;">Summary Statistics</div>
+        <div class="stat-grid" id="hist-stats-grid" style="margin-bottom:24px;"></div>
+
+        <div class="card-hd">Snapshot History Data</div>
+        <div style="max-height: 300px; overflow-y: auto; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:var(--radius-sm);">
+          <table style="width: 100%; text-align: left; border-collapse: collapse; font-size: 0.8rem;">
+            <thead style="position: sticky; top: 0; background: var(--bg1); z-index: 10;">
+              <tr>
+                <th style="padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text3);">Time</th>
+                <th style="padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text3);">CPU %</th>
+                <th style="padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text3);">RAM %</th>
+                <th style="padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text3);">Net Sent</th>
+                <th style="padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text3);">Net Recv</th>
+                <th style="padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text3);">Processes</th>
+              </tr>
+            </thead>
+            <tbody id="hist-table-body">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div><!-- /app -->
+
+<div id="toast"></div>
+
+<script>
+const BASE_URL = "https://your-real-backend.onrender.com";
+const N = 60;
+const cpuHist = Array(N).fill(null);
+const ramHist = Array(N).fill(null);
+
+// ── Chart ──────────────────────────────────────────────
+const ctx = document.getElementById('chart-main').getContext('2d');
+const mainChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: Array(N).fill(''),
+    datasets: [
+      { label: 'CPU %', data: cpuHist, borderColor: '#2dd4bf', backgroundColor: 'rgba(45,212,191,0.08)', borderWidth: 2, tension: 0.45, fill: true, pointRadius: 0 },
+      { label: 'RAM %', data: ramHist, borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.08)', borderWidth: 2, tension: 0.45, fill: true, pointRadius: 0 },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    interaction: { mode: 'index', intersect: false },
+    scales: {
+      x: { display: false },
+      y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+        ticks: { color: '#475569', font: { size: 10 }, callback: v => v + '%' } }
+    },
+    plugins: {
+      legend: { labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 12, boxHeight: 12 } },
+      tooltip: {
+        backgroundColor: 'rgba(13,18,37,0.97)', borderColor: 'rgba(99,179,237,0.2)', borderWidth: 1,
+        titleColor: '#e2e8f0', bodyColor: '#94a3b8',
+        callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y?.toFixed(1) ?? '-'}%` }
+      }
+    }
+  }
+});
+
+// ── Helpers ────────────────────────────────────────────
+function uc(p) { return p > 85 ? '#f87171' : p > 60 ? '#fbbf24' : '#2dd4bf'; }
+function dc(p) { return p > 90 ? '#f87171' : p > 70 ? '#fbbf24' : '#60a5fa'; }
+function row(k, v) { return `<div class="info-row"><span class="ik">${k}</span><span class="iv">${v}</span></div>`; }
+
+function toast(msg, color = '#2dd4bf') {
+  const t = document.getElementById('toast');
+  t.style.color = color;
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+function switchTab(name, el) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  el.classList.add('active');
+}
+
+// ── Update dashboard ───────────────────────────────────
+function update(d) {
+  const cpu = d.cpu.usage_percent, ram = d.memory.percent;
+
+  document.getElementById('s-cpu').textContent = cpu.toFixed(1) + '%';
+  document.getElementById('s-cpu-lbl').textContent = `${d.cpu.core_count}C/${d.cpu.thread_count}T · ${d.cpu.frequency_mhz ?? '-'} MHz`;
+  document.getElementById('b-cpu').style.width = cpu + '%';
+  document.getElementById('b-cpu').style.background = uc(cpu);
+  document.getElementById('b-cpu').style.boxShadow = `0 0 8px ${uc(cpu)}`;
+
+  document.getElementById('s-ram').textContent = ram.toFixed(1) + '%';
+  document.getElementById('s-ram-lbl').textContent = `${d.memory.used_gb} / ${d.memory.total_gb} GB`;
+  document.getElementById('b-ram').style.width = ram + '%';
+  document.getElementById('b-ram').style.background = uc(ram);
+
+  document.getElementById('s-net').textContent = d.network.bytes_recv_mb.toFixed(1);
+  document.getElementById('s-proc').textContent = d.processes;
+
+  // Chart
+  cpuHist.shift(); cpuHist.push(cpu);
+  ramHist.shift(); ramHist.push(ram);
+  mainChart.update();
+
+  // Sys info
+  const sys = d.system;
+  document.getElementById('sysinfo-table').innerHTML =
+    row('OS', sys.os) + row('Hostname', sys.hostname) + row('Uptime', sys.uptime) +
+    row('Boot Time', sys.boot_time) + row('CPU Cores', `${d.cpu.core_count} cores / ${d.cpu.thread_count} threads`) +
+    row('CPU Freq', d.cpu.frequency_mhz ? `${d.cpu.frequency_mhz} MHz` : 'N/A') +
+    row('Net Sent', `${d.network.bytes_sent_mb.toFixed(2)} MB`) +
+    row('Net Recv', `${d.network.bytes_recv_mb.toFixed(2)} MB`) +
+    row('Processes', d.processes);
+
+  // Per-core
+  document.getElementById('cores-grid').innerHTML = d.cpu.per_core.map((p, i) => {
+    const c = uc(p);
+    return `<div class="core-tile">
+      <div class="core-lbl">Core ${i}</div>
+      <div class="core-val" style="color:${c}">${p.toFixed(1)}%</div>
+      <div class="core-bar"><div class="core-fill" style="width:${p}%;background:${c}"></div></div>
+    </div>`;
+  }).join('');
+
+  // Disks
+  document.getElementById('disk-grid').innerHTML = d.disks.map(dk => {
+    const c = dc(dk.percent);
+    return `<div class="disk-card">
+      <div class="disk-h">
+        <div class="disk-icon">💿</div>
+        <div>
+          <div class="disk-name">${dk.device.replace(/\\\\\.\\/, '').replace(/\\/g,'')}</div>
+          <div class="disk-path">${dk.mountpoint} · ${dk.fstype}</div>
+        </div>
+      </div>
+      <div class="disk-pct-bar"><div class="disk-pct-fill" style="width:${dk.percent}%;background:${c}"></div></div>
+      <div class="disk-stats"><span>${dk.used_gb} GB used</span><span style="color:${c};font-weight:700">${dk.percent}%</span><span>${dk.total_gb} GB total</span></div>
+    </div>`;
+  }).join('');
+
+  // Net
+  const ifaceHtml = Object.entries(d.network.interfaces).map(([k,v]) => row(k, v)).join('');
+  document.getElementById('net-table').innerHTML =
+    row('Sent', `${d.network.bytes_sent_mb.toFixed(2)} MB`) +
+    row('Received', `${d.network.bytes_recv_mb.toFixed(2)} MB`) +
+    row('Packets Sent', d.network.packets_sent.toLocaleString()) +
+    row('Packets Recv', d.network.packets_recv.toLocaleString()) + ifaceHtml;
+
+  // Battery
+  if (d.battery) {
+    const bt = d.battery;
+    const bc = bt.percent > 30 ? (bt.charging ? '#60a5fa' : '#34d399') : '#f87171';
+    document.getElementById('bat-info').innerHTML = `
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+        <div style="flex:1;height:10px;background:rgba(255,255,255,0.06);border-radius:5px;overflow:hidden">
+          <div style="width:${bt.percent}%;height:100%;background:${bc};border-radius:5px;transition:width .6s"></div>
+        </div>
+        <span style="font-weight:700;font-family:'JetBrains Mono',monospace;color:${bc}">${bt.percent}%</span>
+      </div>
+      ${row('Status', bt.charging ? '⚡ Charging' : '🔋 On Battery')}
+      ${bt.time_left_mins !== null && bt.time_left_mins > 0 ? row('Remaining', bt.time_left_mins + ' min') : ''}
+    `;
+  } else {
+    document.getElementById('bat-info').innerHTML = `<div class="info-row"><span class="ik" style="color:var(--text3)">Desktop / AC power (no battery)</span></div>`;
+  }
+
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+}
+
+// ── Security scan ──────────────────────────────────────
+const statusIcon = { PASS:'✅', WARN:'⚠️', FAIL:'❌', INFO:'ℹ️' };
+const statusClass = { PASS:'chip-pass', WARN:'chip-warn', FAIL:'chip-fail', INFO:'chip-info' };
+const statusLeft  = { PASS:'var(--green)', WARN:'var(--amber)', FAIL:'var(--red)', INFO:'var(--indigo)' };
+const statusBg    = { PASS:'rgba(52,211,153,0.1)', WARN:'rgba(251,191,36,0.1)', FAIL:'rgba(248,113,113,0.12)', INFO:'rgba(129,140,248,0.1)' };
+
+async function runScan() {
+  const btn = document.getElementById('scan-btn');
+  const out = document.getElementById('scan-out');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner"></div> Scanning…';
+  out.innerHTML = '';
+  try {
+    const r = await fetch(`${BASE_URL}/api/security-scan`);
+    const d = await r.json();
+    renderScan(d);
+    toast('✅ Security scan complete!');
+  } catch(e) {
+    out.innerHTML = `<div class="card" style="max-width:520px;margin:0 auto;text-align:center;color:var(--red)">
+      <h3 style="margin-bottom:8px">⚠️ Backend Unreachable</h3>
+      <p style="color:var(--text2)">Make sure the server is running: <span style="font-family:'JetBrains Mono',monospace;color:var(--teal)">python backend/server.py</span></p>
+    </div>`;
+    toast('Failed to reach backend', '#f87171');
+  }
+  btn.disabled = false;
+  btn.innerHTML = '<span>🛡️</span> Run Again';
+}
+
+function renderScan(d) {
+  const r = 68, circ = 2 * Math.PI * r, off = circ - (d.score / 100) * circ;
+  const sc = d.score >= 80 ? '#34d399' : d.score >= 55 ? '#fbbf24' : '#f87171';
+  document.getElementById('scan-out').innerHTML = `
+  <div class="fade-in" style="max-width:840px;margin:0 auto">
+    <div class="score-ring-wrap">
+      <div class="score-ring">
+        <svg width="170" height="170" viewBox="0 0 170 170">
+          <circle class="ring-bg" cx="85" cy="85" r="${r}" stroke-width="11"/>
+          <circle class="ring-fg" cx="85" cy="85" r="${r}" stroke-width="11" stroke="${sc}"
+            stroke-dasharray="${circ}" stroke-dashoffset="${off}"/>
+        </svg>
+        <div class="score-inner">
+          <div class="score-num" style="color:${sc}">${d.score}</div>
+          <div class="score-sub">/ 100</div>
+          <div class="score-status" style="color:${sc}">${d.overall_status}</div>
+        </div>
+      </div>
+    </div>
+    <div class="chips">
+      <span class="chip chip-pass">✅ Pass: ${d.summary.pass}</span>
+      <span class="chip chip-warn">⚠️ Warn: ${d.summary.warn}</span>
+      <span class="chip chip-fail">❌ Fail: ${d.summary.fail}</span>
+      <span class="chip chip-info">ℹ️ Info: ${d.summary.info}</span>
+    </div>
+    <div class="findings">
+      ${d.findings.map(f => `
+      <div class="finding" style="border-left-color:${statusLeft[f.status]||'var(--border)'}">
+        <div class="f-icon" style="background:${statusBg[f.status]||'rgba(255,255,255,0.05)'}">${statusIcon[f.status]||'❓'}</div>
+        <div>
+          <div class="f-cat">${f.category}</div>
+          <div class="f-name">${f.name}</div>
+          <div class="f-detail">${f.details}</div>
+          ${f.recommendation ? `<div class="f-rec">💡 ${f.recommendation}</div>` : ''}
+        </div>
+        <span class="f-badge ${statusClass[f.status]||'chip-info'}">${f.status}</span>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ── Download ───────────────────────────────────────────
+async function download(type) {
+  // Prevent double-clicks
+  const cards = document.querySelectorAll('.report-card');
+  cards.forEach(c => c.style.pointerEvents = 'none');
+
+  const toastEl = document.getElementById('toast');
+  // Show persistent spinner toast
+  toastEl.style.color = '#2dd4bf';
+  toastEl.innerHTML = `<span style="display:inline-flex;align-items:center;gap:10px"><span class="spinner" style="border-top-color:#2dd4bf"></span> Generating ${type.toUpperCase()} report… this may take ~20s</span>`;
+  toastEl.classList.add('show');
+
+  try {
+    const res = await fetch(`${BASE_URL}/api/report/${type}`);
+    if (!res.ok) {
+      let errMsg = `Server error ${res.status}`;
+      try {
+        const errData = await res.json();
+        errMsg = errData.error || errMsg;
+      } catch(_) {}
+      throw new Error(errMsg);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sysmon_report.${type}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast(`✅ ${type.toUpperCase()} report downloaded!`);
+  } catch(e) {
+    toast(`❌ Download failed: ${e.message}`, '#f87171');
+  } finally {
+    cards.forEach(c => c.style.pointerEvents = '');
+  }
+}
+
+// ── Poll ───────────────────────────────────────────────
+let firstLoad = true;
+async function poll() {
+  try {
+    const r = await fetch(`${BASE_URL}/api/metrics`);
+    const d = await r.json();
+    update(d);
+    if (firstLoad) {
+      firstLoad = false;
+      document.getElementById('loading-screen').style.opacity = '0';
+      document.getElementById('loading-screen').style.pointerEvents = 'none';
+      setTimeout(() => document.getElementById('loading-screen').style.display = 'none', 500);
+      document.getElementById('app').style.opacity = '1';
+    }
+  } catch(e) {
+    if (firstLoad) {
+      document.getElementById('loading-status').style.display = 'none';
+      document.getElementById('loading-screen').innerHTML = `
+        <div class="loading-logo">Sys<span class="hi">Mon</span> Pro</div>
+        <div class="loading-err">⚠️ Cannot connect to the backend server</div>
+        <p style="color:#475569;font-size:0.82rem;text-align:center;max-width:320px">Please ensure the backend is running and reachable from this frontend.</p>
+      `;
+    }
+  }
+}
+
+// ── History ────────────────────────────────────────────
+let histCpuRamChart = null;
+let histNetChart = null;
+
+async function loadHistory() {
+  const loading = document.getElementById('hist-loading');
+  const content = document.getElementById('hist-content');
+  loading.style.display = 'block';
+  content.style.display = 'none';
+  
+  try {
+    const r = await fetch(`${BASE_URL}/api/history`);
+    const data = await r.json();
+    
+    const rangeVal = parseInt(document.getElementById('hist-range').value);
+    const limit = rangeVal * 30; // 30 entries per min on avg @ 2s interval
+    const filteredData = data.slice(-limit);
+    
+    // Process data
+    const labels = filteredData.map(d => {
+      const dte = new Date(d.timestamp);
+      return `${dte.getHours().toString().padStart(2,'0')}:${dte.getMinutes().toString().padStart(2,'0')}:${dte.getSeconds().toString().padStart(2,'0')}`;
+    });
+    
+    const cpuData = filteredData.map(d => d.cpu);
+    const ramData = filteredData.map(d => d.ram);
+    const netSentData = filteredData.map(d => d.net_sent_mb);
+    const netRecvData = filteredData.map(d => d.net_recv_mb);
+
+    // Calc summary stats
+    if (filteredData.length > 0) {
+      const minCpu = Math.min(...cpuData).toFixed(1);
+      const maxCpu = Math.max(...cpuData).toFixed(1);
+      const avgCpu = (cpuData.reduce((a,b)=>a+b, 0) / cpuData.length).toFixed(1);
+      
+      const minRam = Math.min(...ramData).toFixed(1);
+      const maxRam = Math.max(...ramData).toFixed(1);
+      const avgRam = (ramData.reduce((a,b)=>a+b, 0) / ramData.length).toFixed(1);
+
+      document.getElementById('hist-stats-grid').innerHTML = `
+        <div class="stat-card" style="--c:var(--teal)">
+          <div class="sc-top"><div class="sc-icon">🧠</div><div class="sc-tag">CPU STATS</div></div>
+          <div class="sc-val">${avgCpu}%</div>
+          <div class="sc-lbl">Average CPU Usage</div>
+          <div style="font-size:0.75rem; color:var(--text2); display:flex; justify-content:space-between; margin-top:10px;">
+            <span>Min: <b style="color:var(--text)">${minCpu}%</b></span>
+            <span>Max: <b style="color:var(--text)">${maxCpu}%</b></span>
+          </div>
+        </div>
+        <div class="stat-card" style="--c:var(--purple)">
+          <div class="sc-top"><div class="sc-icon">💾</div><div class="sc-tag">RAM STATS</div></div>
+          <div class="sc-val">${avgRam}%</div>
+          <div class="sc-lbl">Average RAM Usage</div>
+          <div style="font-size:0.75rem; color:var(--text2); display:flex; justify-content:space-between; margin-top:10px;">
+            <span>Min: <b style="color:var(--text)">${minRam}%</b></span>
+            <span>Max: <b style="color:var(--text)">${maxRam}%</b></span>
+          </div>
+        </div>
+      `;
+    }
+
+    // Populate table
+    document.getElementById('hist-table-body').innerHTML = [...filteredData].reverse().map((d, i) => {
+      const lbl = labels[labels.length - 1 - i];
+      return `
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.03);">
+        <td style="padding:8px 14px; font-family:'JetBrains Mono',monospace;">${lbl}</td>
+        <td style="padding:8px 14px; color:${uc(d.cpu)}">${parseFloat(d.cpu).toFixed(1)}%</td>
+        <td style="padding:8px 14px; color:${uc(d.ram)}">${parseFloat(d.ram).toFixed(1)}%</td>
+        <td style="padding:8px 14px;">${parseFloat(d.net_sent_mb).toFixed(2)} MB</td>
+        <td style="padding:8px 14px;">${parseFloat(d.net_recv_mb).toFixed(2)} MB</td>
+        <td style="padding:8px 14px;">${d.processes}</td>
+      </tr>
+      `;
+    }).join('');
+
+    // Destroy old charts to prevent memory leaks/glitches
+    if (histCpuRamChart) histCpuRamChart.destroy();
+    if (histNetChart) histNetChart.destroy();
+
+    const chartOptions = {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      scales: {
+        x: { 
+          grid: { color: 'rgba(255,255,255,0.02)', drawBorder: false },
+          ticks: { color: '#475569', maxTicksLimit: 12, maxRotation: 0 }
+        },
+        y: { 
+          grid: { color: 'rgba(255,255,255,0.04)', drawBorder: false },
+          ticks: { color: '#475569' }
+        }
+      },
+      plugins: {
+        legend: { labels: { color: '#94a3b8', boxWidth: 12, boxHeight: 12 } },
+        tooltip: {
+          backgroundColor: 'rgba(13,18,37,0.97)', borderColor: 'rgba(99,179,237,0.2)', borderWidth: 1,
+          titleColor: '#e2e8f0', bodyColor: '#94a3b8'
+        }
+      },
+      elements: { point: { radius: 0, hitRadius: 10, hoverRadius: 4 } }
+    };
+
+    // CPU / RAM Chart
+    const ctx1 = document.getElementById('chart-history-cpu-ram').getContext('2d');
+    histCpuRamChart = new Chart(ctx1, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'CPU %', data: cpuData, borderColor: '#2dd4bf', backgroundColor: 'rgba(45,212,191,0.1)', borderWidth: 1.5, fill: true, tension: 0.3 },
+          { label: 'RAM %', data: ramData, borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.1)', borderWidth: 1.5, fill: true, tension: 0.3 }
+        ]
+      },
+      options: {
+        ...chartOptions,
+        scales: { ...chartOptions.scales, y: { ...chartOptions.scales.y, min: 0, max: 100 } }
+      }
+    });
+
+    // Net I/O Chart
+    const ctx2 = document.getElementById('chart-history-net').getContext('2d');
+    histNetChart = new Chart(ctx2, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'Sent (MB)', data: netSentData, borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.1)', borderWidth: 1.5, fill: true, tension: 0.3 },
+          { label: 'Recv (MB)', data: netRecvData, borderColor: '#f472b6', backgroundColor: 'rgba(244,114,182,0.1)', borderWidth: 1.5, fill: true, tension: 0.3 }
+        ]
+      },
+      options: chartOptions
+    });
+
+    loading.style.display = 'none';
+    content.style.display = 'block';
+  } catch(e) {
+    loading.innerHTML = '<span style="color:var(--red);">⚠️ Error loading historical data</span>';
+  }
+}
+
+poll();
+setInterval(poll, 2000);
+</script>
+</body>
+</html>
