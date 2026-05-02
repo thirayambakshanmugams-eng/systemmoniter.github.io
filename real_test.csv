@@ -1,0 +1,104 @@
+=== SYSMON PRO - SYSTEM ANALYSIS REPORT ===
+Generated At:  2026-04-04 13:28:17
+Hostname:      thirayambak
+Operating System: Windows 11
+Security Score: 75/100  (SECURE)
+
+### SYSTEM INFORMATION ###
+Property,Value
+Operating System,Windows 11
+OS Version,10.0.26200
+Hostname,thirayambak
+Architecture,AMD64
+Processor,"Intel64 Family 6 Model 197 Stepping 2, GenuineIntel"
+System Uptime,"5 days, 1:36:21"
+Last Boot Time,2026-03-30 11:51:56
+Running Processes,350
+
+### CPU - PROCESSOR ###
+Property,Value
+Overall Usage (%),9.6
+Physical Core Count,16
+Logical Thread Count,16
+Current Frequency (MHz),2000.0
+Max Frequency (MHz),2000.0
+
+Core,Usage (%)
+Core 0,55.4
+Core 1,36.9
+Core 2,34.4
+Core 3,28.4
+Core 4,23.6
+Core 5,2.3
+Core 6,0.0
+Core 7,0.0
+Core 8,0.0
+Core 9,0.0
+Core 10,12.0
+Core 11,14.5
+Core 12,10.7
+Core 13,9.5
+Core 14,0.0
+Core 15,0.0
+
+### MEMORY - RAM & SWAP ###
+Property,Value
+Total RAM (GB),31.4
+Used RAM (GB),15.63
+Available RAM (GB),15.77
+RAM Usage (%),49.8
+Swap Total (GB),2.0
+Swap Used (GB),0.12
+Swap Usage (%),6.1
+
+### STORAGE - DISK VOLUMES ###
+Device,Mountpoint,File System,Total (GB),Used (GB),Free (GB),Used (%)
+C:\,C:\,NTFS,918.42,132.05,786.37,14.4
+D:\,D:\,NTFS,488.28,188.67,299.61,38.6
+E:\,E:\,NTFS,500.0,0.11,499.89,0.0
+
+### NETWORK - I/O & INTERFACES ###
+Property,Value
+Total Sent (MB),60.25
+Total Received (MB),28.08
+Packets Sent,27908
+Packets Received,63357
+
+Interface,IP Address
+vEthernet (WSL (Hyper-V firewall)),172.31.16.1
+Local Area Connection* 1,169.254.201.145
+Local Area Connection* 2,169.254.220.113
+Wi-Fi,10.64.199.166
+Loopback Pseudo-Interface 1,127.0.0.1
+
+### BATTERY / POWER ###
+Property,Value
+Battery Level (%),26
+Power Status,On Battery
+Time Remaining (min),71582788.2
+
+### SECURITY SCAN RESULTS ###
+Property,Value
+Overall Status,SECURE
+Security Score,75/100
+Scan Timestamp,2026-04-04 13:28:34
+Checks Passed,4
+Checks Warning,0
+Checks Failed,0
+Informational,4
+Total Checks,8
+
+Category,Check Name,Status,Details,Recommendation
+Firewall,Windows Firewall,PASS,"Domain: ON, Private: ON, Public: ON",
+Antivirus,Windows Defender,PASS,Antivirus enabled: True,
+Antivirus,Real-Time Protection,PASS,Real-time protection enabled: True,
+Updates,Windows Update Status,INFO,Last success: Unknown,Check updates manually.
+Account Policy,Password Policy,INFO,Maximum password age (days):                          42,Set age to 90 days or less.
+Startup,Startup Programs,INFO,9 registered,
+Network,Open Listening Ports,INFO,19 ports active,
+Account Policy,User Account Control (UAC),PASS,UAC Enabled: True,
+
+### RECOMMENDATIONS ###
+Check Name,Recommendation
+Windows Update Status,Check updates manually.
+Password Policy,Set age to 90 days or less.
